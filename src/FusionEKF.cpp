@@ -18,7 +18,7 @@ FusionEKF::~FusionEKF() {}
 
 void FusionEKF::initialize(const MeasurementPackage &measurement_pack) {
   // Initialize the state ekf_.x_ with the first measurement.
-  std::cout << "EKF: " << endl;
+  //std::cout << "EKF: " << endl;
   previous_timestamp_ = measurement_pack.timestamp_;
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
@@ -31,8 +31,8 @@ void FusionEKF::initialize(const MeasurementPackage &measurement_pack) {
   }
   else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
     ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
-    if (ekf_.x_[0] == 0.0) ekf_.x_[0] = MIN_VAL; // init (to 0.01), to
-    if (ekf_.x_[1] == 0.0) ekf_.x_[1] = MIN_VAL; // overcome divide by zero
+    if (ekf_.x_[0] == 0.0) ekf_.x_[0] = KalmanFilter::MIN_VAL; // init (to 0.01), to
+    if (ekf_.x_[1] == 0.0) ekf_.x_[1] = KalmanFilter::MIN_VAL; // overcome divide by zero
   }
 
   is_initialized_ = true;
@@ -70,7 +70,6 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    ****************************************************************************/
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
-    ekf_.Hj_ = CalculateJacobian(ekf_.x_);
     auto z = Vector3d{ measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], measurement_pack.raw_measurements_[2] };
     ekf_.UpdateEKF(z);
   } else {
@@ -80,8 +79,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   }
 
   // print the output
-  std::cout << "x_ = " << ekf_.x_ << endl;
-  std::cout << "P_ = " << ekf_.P_ << endl;
+  //std::cout << "x_ = " << ekf_.x_ << endl;
+  //std::cout << "P_ = " << ekf_.P_ << endl;
 }
 
 Vector4d FusionEKF::CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth) {
@@ -92,7 +91,7 @@ Vector4d FusionEKF::CalculateRMSE(const vector<VectorXd> &estimations, const vec
   //  * the estimation vector size should equal ground truth vector size
   if (estimations.size() != ground_truth.size()
     || estimations.size() == 0) {
-    std::cout << "Invalid estimation or ground_truth data" << std::endl;
+    std::cerr << "Invalid estimation or ground_truth data" << std::endl;
     return rmse;
   }
 
@@ -107,33 +106,4 @@ Vector4d FusionEKF::CalculateRMSE(const vector<VectorXd> &estimations, const vec
   rmse = rmse.array().sqrt();                     //calculate the squared root
 
   return rmse;
-}
-
-Matrix<double, 3, 4> FusionEKF::CalculateJacobian(const VectorXd& x_state) {
-  Matrix<double, 3, 4> Hj;
-
-  //recover state parameters
-  auto px = x_state(0);
-  auto py = x_state(1);
-  auto vx = x_state(2);
-  auto vy = x_state(3);
-
-  //pre-compute a set of terms to avoid repeated calculation
-  auto c1 = px*px + py*py;
-  auto c2 = sqrt(c1);
-  auto c3 = (c1*c2);
-
-  //check division by zero
-  if (fabs(c1) < MIN_VAL*MIN_VAL) {
-    std::cout << "CalculateJacobian () - Error - Division by Zero" << std::endl;
-    return Hj;
-  }
-
-  //compute the Jacobian matrix
-  Hj <<
-    (px / c2),                (py / c2),                0.0,      0.0,
-    -(py / c1),               (px / c1),                0.0,      0.0,
-    py*(vx*py - vy*px) / c3,  px*(px*vy - py*vx) / c3,  px / c2,  py / c2;
-
-  return Hj;
 }

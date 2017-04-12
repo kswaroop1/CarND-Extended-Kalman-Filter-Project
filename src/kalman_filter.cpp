@@ -1,4 +1,5 @@
 #include "kalman_filter.h"
+#include <iostream>
 
 using Eigen::Vector2d;
 using Eigen::Vector3d;
@@ -70,13 +71,43 @@ void KalmanFilter::UpdateEKF(const Vector3d &z) {
   auto f1     = sqrt(x_[0] * x_[0] + x_[1] * x_[1]);
   auto z_pred = Vector3d{ f1, atan2(x_[1], x_[0]), (x_[0] * x_[2] + x_[1] * x_[3]) / f1 }; // polar coords
   auto y      = z - z_pred;
-  auto Htj    = Hj_.transpose();
-  auto S      = Hj_ * P_ * Htj + R_radar_;
+  auto Hj     = CalculateJacobian();
+  auto Htj    = Hj.transpose();
+  auto S      = Hj * P_ * Htj + R_radar_;
   auto Si     = S.inverse();
   auto PHt    = P_ * Htj ;
   auto K      = PHt * Si ;
 
   //new estimate
   x_ = x_ + (K * y);
-  P_ = (I - K * Hj_) * P_;
+  P_ = (I - K * Hj) * P_;
+}
+
+Matrix<double, 3, 4> KalmanFilter::CalculateJacobian() {
+  Matrix<double, 3, 4> Hj;
+
+  //recover state parameters
+  auto px = x_(0);
+  auto py = x_(1);
+  auto vx = x_(2);
+  auto vy = x_(3);
+
+  //pre-compute a set of terms to avoid repeated calculation
+  auto c1 = px*px + py*py;
+  auto c2 = sqrt(c1);
+  auto c3 = (c1*c2);
+
+  //check division by zero
+  if (fabs(c1) < MIN_VAL*MIN_VAL) {
+    std::cerr << "CalculateJacobian () - Error - Division by Zero" << std::endl;
+    return Hj;
+  }
+
+  //compute the Jacobian matrix
+  Hj <<
+    (px / c2), (py / c2), 0.0, 0.0,
+    -(py / c1), (px / c1), 0.0, 0.0,
+    py*(vx*py - vy*px) / c3, px*(px*vy - py*vx) / c3, px / c2, py / c2;
+
+  return Hj;
 }

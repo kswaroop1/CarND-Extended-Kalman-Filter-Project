@@ -12,6 +12,8 @@ using Eigen::Matrix;
 
 class KalmanFilter {
 public:
+  static constexpr double MIN_VAL = 0.01; /// minimum value to overcome divide by zero
+
   VectorXd x_;   // state vector
   Matrix4d P_;   // state covariance matrix
   Matrix4d F_;   // state transistion matrix
@@ -20,8 +22,6 @@ public:
   // measurement matrix
   Matrix<double, 2, 4> H_laser_;
   Matrix<double, 4, 2> Ht_laser_;
-  Matrix<double, 3, 4> Hj_;
-  Matrix<double, 4, 3> Htj_;
 
   // measurement covariance matrix
   Matrix2d R_laser_;
@@ -50,6 +50,8 @@ public:
 
 private:
   Matrix4d I;  // identity matrix
+
+  Matrix<double, 3, 4> CalculateJacobian(); // A helper method to calculate Jacobians.
 };
 
 #endif /* KALMAN_FILTER_H_ */

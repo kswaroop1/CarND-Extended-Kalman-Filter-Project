@@ -17,8 +17,6 @@ public:
   FusionEKF();
   virtual ~FusionEKF();
 
-  static constexpr double MIN_VAL = 0.01; /// minimum value to overcome divide by zero
-
   /**
   * Run the whole flow of the Kalman Filter from here.
   */
@@ -36,7 +34,6 @@ public:
 
 private:
   void initialize(const MeasurementPackage& measurement_pack);
-  Matrix<double, 3, 4> CalculateJacobian(const VectorXd& x_state); // A helper method to calculate Jacobians.
 
   bool is_initialized_;   // check whether the tracking toolbox was initiallized or not (first measurement)
   long long previous_timestamp_;
