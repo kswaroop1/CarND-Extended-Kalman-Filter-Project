@@ -37,10 +37,6 @@ private:
 
   bool is_initialized_;   // check whether the tracking toolbox was initiallized or not (first measurement)
   long long previous_timestamp_;
-
-  // noise
-  double noise_ax_;
-  double noise_ay_;
 };
 
 #endif /* FusionEKF_H_ */

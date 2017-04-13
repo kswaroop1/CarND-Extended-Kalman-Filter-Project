@@ -10,6 +10,8 @@ using Eigen::Matrix4d;
 using Eigen::Matrix;
 
 KalmanFilter::KalmanFilter() : I (Matrix4d::Identity()) {
+  noise_ax_ = noise_ay_ = 9.0; // Use noise_ax = 9 and noise_ay = 9 for your Q matrix.
+
   x_ = VectorXd(4);   // state vector
   x_ << 1.0, 1.0, 1.0, 1.0;
 
@@ -46,7 +48,21 @@ KalmanFilter::KalmanFilter() : I (Matrix4d::Identity()) {
 
 KalmanFilter::~KalmanFilter() {}
 
-void KalmanFilter::Predict() {
+void KalmanFilter::Predict(double dt) {
+  //update the state
+  //1. Modify the F matrix so that the time is integrated
+  F_(0, 2) = F_(1, 3) = dt;
+
+  //2. Set the process covariance matrix Q
+  auto dt2 = dt*dt, dt3 = dt*dt*dt / 2, dt4 = dt*dt*dt*dt / 4;
+  Q_(0, 0) = dt4*noise_ax_;
+  Q_(1, 1) = dt4*noise_ay_;
+  Q_(2, 0) = Q_(0, 2) = dt3*noise_ax_;
+  Q_(3, 1) = Q_(1, 3) = dt3*noise_ay_;
+  Q_(2, 2) = dt2*noise_ax_;
+  Q_(3, 3) = dt2*noise_ay_;
+
+  //new estimate
   x_      = F_ * x_;
   auto Ft = F_.transpose();
   P_      = F_ * P_ * Ft + Q_;

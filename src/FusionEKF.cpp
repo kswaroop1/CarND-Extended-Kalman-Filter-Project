@@ -9,10 +9,7 @@ using Eigen::MatrixXd;
 using Eigen::Matrix;
 using std::vector;
 
-FusionEKF::FusionEKF() :
-  is_initialized_(false), previous_timestamp_(0), 
-  noise_ax_(9.0), noise_ay_(9.0) // Use noise_ax = 9 and noise_ay = 9 for your Q matrix.
-{}
+FusionEKF::FusionEKF() : is_initialized_(false), previous_timestamp_(0) {}
 
 FusionEKF::~FusionEKF() {}
 
@@ -20,20 +17,22 @@ void FusionEKF::initialize(const MeasurementPackage &measurement_pack) {
   // Initialize the state ekf_.x_ with the first measurement.
   //std::cout << "EKF: " << endl;
   previous_timestamp_ = measurement_pack.timestamp_;
+  Vector4d init_state;
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Convert radar from polar to cartesian coordinates and initialize state.
     auto rho = measurement_pack.raw_measurements_[0];
     auto phi = measurement_pack.raw_measurements_[1];
     auto rate = measurement_pack.raw_measurements_[2];
-
-    ekf_.x_ << rho*cos(phi), rho*sin(phi), rate*cos(phi), rate*sin(phi);
+    init_state << rho*cos(phi), rho*sin(phi), rate*cos(phi), rate*sin(phi);
   }
   else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-    ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
-    if (ekf_.x_[0] == 0.0) ekf_.x_[0] = KalmanFilter::MIN_VAL; // init (to 0.01), to
-    if (ekf_.x_[1] == 0.0) ekf_.x_[1] = KalmanFilter::MIN_VAL; // overcome divide by zero
+    init_state << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0.0, 0.0;
   }
+  if (init_state[0] == 0.0) init_state[0] = KalmanFilter::MIN_VAL; // init (to 0.01), to
+  if (init_state[1] == 0.0) init_state[1] = KalmanFilter::MIN_VAL; // overcome divide by zero
+
+  ekf_.SetInitState(init_state);
 
   is_initialized_ = true;
 }
@@ -51,19 +50,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   auto dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;	//dt - expressed in seconds
   previous_timestamp_ = measurement_pack.timestamp_;
 
-  //1. Modify the F matrix so that the time is integrated
-  ekf_.F_(0, 2) = ekf_.F_(1, 3) = dt;
-
-  //2. Set the process covariance matrix Q
-  auto dt2 = dt*dt, dt3 = dt*dt*dt / 2, dt4 = dt*dt*dt*dt / 4;
-  ekf_.Q_(0, 0) = dt4*noise_ax_;
-  ekf_.Q_(1, 1) = dt4*noise_ay_;
-  ekf_.Q_(2, 0) = ekf_.Q_(0, 2) = dt3*noise_ax_;
-  ekf_.Q_(3, 1) = ekf_.Q_(1, 3) = dt3*noise_ay_;
-  ekf_.Q_(2, 2) = dt2*noise_ax_;
-  ekf_.Q_(3, 3) = dt2*noise_ay_;
-
-  ekf_.Predict();
+  ekf_.Predict(dt);
 
   /*****************************************************************************
    *  Update, as per sensor type
