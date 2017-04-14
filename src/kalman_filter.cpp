@@ -1,8 +1,11 @@
 #include "kalman_filter.h"
 #include <iostream>
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 using Eigen::Vector2d;
 using Eigen::Vector3d;
+using Eigen::Vector4d;
 using Eigen::VectorXd;
 using Eigen::Matrix2d;
 using Eigen::Matrix3d;
@@ -84,15 +87,18 @@ void KalmanFilter::Update(const Vector2d &z) {
 
 void KalmanFilter::UpdateEKF(const Vector3d &z) {
   // update the state by using Extended Kalman Filter equations
+  auto Hj = CalculateJacobian();
+  auto Htj = Hj.transpose();
+  auto S = Hj * P_ * Htj + R_radar_;
+  auto Si = S.inverse();
+  auto PHt = P_ * Htj;
+  auto K = PHt * Si;
+
   auto f1     = sqrt(x_[0] * x_[0] + x_[1] * x_[1]);
   auto z_pred = Vector3d{ f1, atan2(x_[1], x_[0]), (x_[0] * x_[2] + x_[1] * x_[3]) / f1 }; // polar coords
-  auto y      = z - z_pred;
-  auto Hj     = CalculateJacobian();
-  auto Htj    = Hj.transpose();
-  auto S      = Hj * P_ * Htj + R_radar_;
-  auto Si     = S.inverse();
-  auto PHt    = P_ * Htj ;
-  auto K      = PHt * Si ;
+  auto y      = Vector3d{ z - z_pred };     // need to declare type, else the expression result defaults to 
+  if (y(1) > M_PI) y(1) -= 2 * M_PI;        // bring the angle phi 
+  else if (y(1) < -M_PI) y(1) += 2 * M_PI;  // between -pi and pi
 
   //new estimate
   x_ = x_ + (K * y);
@@ -114,14 +120,14 @@ Matrix<double, 3, 4> KalmanFilter::CalculateJacobian() {
   auto c3 = (c1*c2);
 
   //check division by zero
-  if (fabs(c1) < MIN_VAL*MIN_VAL) {
+  if (fabs(c1) < EPSILON) {
     std::cerr << "CalculateJacobian () - Error - Division by Zero" << std::endl;
     return Hj;
   }
 
   //compute the Jacobian matrix
   Hj <<
-    (px / c2), (py / c2), 0.0, 0.0,
+    (px / c2),  (py / c2), 0.0, 0.0,
     -(py / c1), (px / c1), 0.0, 0.0,
     py*(vx*py - vy*px) / c3, px*(px*vy - py*vx) / c3, px / c2, py / c2;
 

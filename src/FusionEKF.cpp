@@ -1,21 +1,25 @@
 #include "FusionEKF.h"
 #include "Eigen/Dense"
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
 using Eigen::Vector4d;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using Eigen::Matrix;
 using std::vector;
 
-FusionEKF::FusionEKF() : is_initialized_(false), previous_timestamp_(0) {}
+FusionEKF::FusionEKF() : FusionEKF(false) {}
+FusionEKF::FusionEKF(bool verboseMode) : verboseMode_(verboseMode), is_initialized_(false), previous_timestamp_(0) {}
 
 FusionEKF::~FusionEKF() {}
 
 void FusionEKF::initialize(const MeasurementPackage &measurement_pack) {
   // Initialize the state ekf_.x_ with the first measurement.
-  //std::cout << "EKF: " << endl;
+  if (verboseMode_) std::cout << "EKF: " << setprecision(3) << endl;
   previous_timestamp_ = measurement_pack.timestamp_;
   Vector4d init_state;
 
@@ -29,8 +33,8 @@ void FusionEKF::initialize(const MeasurementPackage &measurement_pack) {
   else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
     init_state << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0.0, 0.0;
   }
-  if (init_state[0] == 0.0) init_state[0] = KalmanFilter::MIN_VAL; // init (to 0.01), to
-  if (init_state[1] == 0.0) init_state[1] = KalmanFilter::MIN_VAL; // overcome divide by zero
+  if (init_state[0] == 0.0) init_state[0] = 0.01; // init (to 0.01), to
+  if (init_state[1] == 0.0) init_state[1] = 0.01; // overcome divide by zero
 
   ekf_.SetInitState(init_state);
 
@@ -66,18 +70,19 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   }
 
   // print the output
-  //std::cout << "x_ = " << ekf_.x_ << endl;
-  //std::cout << "P_ = " << ekf_.P_ << endl;
+  if (verboseMode_) {
+    std::cout << "x_ = \t" << ekf_.x(0) << "\t" << ekf_.x(1) << "\t" << ekf_.x(2) << "\t" << ekf_.x(3) << endl;
+    //std::cout << "P_ = " << ekf_.P() << endl;
+  }
 }
 
-Vector4d FusionEKF::CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth) {
+/*static*/ Vector4d FusionEKF::CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth) {
   Vector4d rmse{ 0.0, 0.0, 0.0, 0.0 };
 
   // check the validity of the following inputs:
   //  * the estimation vector size should not be zero
   //  * the estimation vector size should equal ground truth vector size
-  if (estimations.size() != ground_truth.size()
-    || estimations.size() == 0) {
+  if (estimations.size() != ground_truth.size() || estimations.size() == 0) {
     std::cerr << "Invalid estimation or ground_truth data" << std::endl;
     return rmse;
   }

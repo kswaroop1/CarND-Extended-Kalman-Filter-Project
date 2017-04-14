@@ -13,12 +13,12 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
 
-void check_arguments(int argc, char* argv[]) {
+void check_arguments(int argc, char* argv[], bool& verboseMode) {
   string usage_instructions{ "Usage instructions: " };
   usage_instructions += argv[0];
   usage_instructions += " path/to/input.txt output.txt";
 
-  auto has_valid_args = false;
+  auto has_valid_args = verboseMode = false;
 
   // make sure the user has provided input and output files
   if (argc == 1) {
@@ -27,7 +27,10 @@ void check_arguments(int argc, char* argv[]) {
     cerr << "Please include an output file.\n" << usage_instructions << endl;
   } else if (argc == 3) {
     has_valid_args = true;
-  } else if (argc > 3) {
+  } else if (argc == 4) {
+    has_valid_args = verboseMode = true;
+  }
+  else if (argc > 4) {
     cerr << "Too many arguments.\n" << usage_instructions << endl;
   }
 
@@ -93,7 +96,8 @@ void read_data(std::ifstream &in_file, std::vector<MeasurementPackage> &measurem
 }
 
 int main(int argc, char* argv[]) {
-  check_arguments(argc, argv);
+  auto verboseMode = false;
+  check_arguments(argc, argv, verboseMode);
 
   string in_file_name_{ argv[1] };
   ifstream in_file_(in_file_name_.c_str(), ifstream::in);
@@ -110,7 +114,7 @@ int main(int argc, char* argv[]) {
   read_data(in_file_, measurement_pack_list, gt_pack_list);
 
   // Create a Fusion EKF instance
-  FusionEKF fusionEKF;
+  FusionEKF fusionEKF{ verboseMode };
 
   // used to compute the RMSE later
   vector<VectorXd> estimations;
@@ -124,10 +128,8 @@ int main(int argc, char* argv[]) {
     fusionEKF.ProcessMeasurement(measurement_pack_list[k]);
 
     // output the estimation
-    out_file_ << fusionEKF.ekf_.x(0) << "\t";
-    out_file_ << fusionEKF.ekf_.x(1) << "\t";
-    out_file_ << fusionEKF.ekf_.x(2) << "\t";
-    out_file_ << fusionEKF.ekf_.x(3) << "\t";
+    auto x = fusionEKF.ekf_.x();
+    out_file_ << x(0) << "\t" << x(1) << "\t" << x(2) << "\t" << x(3) << "\t";
 
     // output the measurements
     if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER) {
@@ -143,10 +145,12 @@ int main(int argc, char* argv[]) {
     }
 
     // output the ground truth packages
-    out_file_ << gt_pack_list[k].gt_values_(0) << "\t";
-    out_file_ << gt_pack_list[k].gt_values_(1) << "\t";
-    out_file_ << gt_pack_list[k].gt_values_(2) << "\t";
-    out_file_ << gt_pack_list[k].gt_values_(3) << "\n";
+    auto gt = gt_pack_list[k].gt_values_;
+    out_file_ << gt(0) << "\t" << gt(1) << "\t" << gt(2) << "\t" << gt(3) << "\n";
+    if (verboseMode) {
+      cout << "gt\t" << gt(0) << "\t" << gt(1) << "\t" << gt(2) << "\t" << gt(3) << endl;
+      cout << "d" << k << "\t" << x(0)-gt(0) << "\t" << x(1)-gt(1) << "\t" << x(2)-gt(2) << "\t" << x(3)-gt(3) << endl << endl;
+    }
 
     estimations.push_back(fusionEKF.ekf_.x());
     ground_truth.push_back(gt_pack_list[k].gt_values_);
@@ -157,7 +161,7 @@ int main(int argc, char* argv[]) {
 
   //cout << "Accuracy - RMSE:" << endl << rmse << endl;
   cout << "RMSE" << endl;
-  for (auto i=0u; i<rmse.size(); i++)
+  for (auto i=0; i<rmse.size(); i++)
 	  cout << rmse[i] << endl;
 
   // close files

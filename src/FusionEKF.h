@@ -8,13 +8,10 @@
 #include <fstream>
 #include "kalman_filter.h"
 
-using Eigen::VectorXd;
-using Eigen::Vector4d;
-using std::vector;
-
 class FusionEKF {
 public:
   FusionEKF();
+  FusionEKF(bool verboseMode);
   virtual ~FusionEKF();
 
   /**
@@ -25,7 +22,7 @@ public:
   /**
   * A helper method to calculate RMSE.
   */
-  Vector4d CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth);
+  static Eigen::Vector4d CalculateRMSE(const std::vector<Eigen::VectorXd> &estimations, const std::vector<Eigen::VectorXd> &ground_truth);
 
   /**
   * Kalman Filter update and prediction math lives in here.
@@ -35,6 +32,7 @@ public:
 private:
   void initialize(const MeasurementPackage& measurement_pack);
 
+  bool verboseMode_;
   bool is_initialized_;   // check whether the tracking toolbox was initiallized or not (first measurement)
   long long previous_timestamp_;
 };
