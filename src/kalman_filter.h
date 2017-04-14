@@ -4,66 +4,57 @@
 
 class KalmanFilter {
 public:
+  static constexpr double EPSILON = 0.0001; /// minimum value to overcome divide by zero
 
-  // state vector
-  Eigen::VectorXd x_;
-
-  // state covariance matrix
-  Eigen::MatrixXd P_;
-
-  // state transistion matrix
-  Eigen::MatrixXd F_;
-
-  // process covariance matrix
-  Eigen::MatrixXd Q_;
-
-  // measurement matrix
-  Eigen::MatrixXd H_;
-
-  // measurement covariance matrix
-  Eigen::MatrixXd R_;
-
-  /**
-   * Constructor
-   */
   KalmanFilter();
-
-  /**
-   * Destructor
-   */
   virtual ~KalmanFilter();
 
-  /**
-   * Init Initializes Kalman filter
-   * @param x_in Initial state
-   * @param P_in Initial state covariance
-   * @param F_in Transition matrix
-   * @param H_in Measurement matrix
-   * @param R_in Measurement covariance matrix
-   * @param Q_in Process covariance matrix
-   */
-  void Init(Eigen::VectorXd &x_in, Eigen::MatrixXd &P_in, Eigen::MatrixXd &F_in,
-      Eigen::MatrixXd &H_in, Eigen::MatrixXd &R_in, Eigen::MatrixXd &Q_in);
+  const Eigen::Vector4d& x() const                      { return x_; }
+  double x(int idx) const                               { return x_(idx); }
+  void SetInitState(const Eigen::Vector4d& init_state)  { x_ = init_state; }
+
+  const Eigen::Matrix4d& P() const                      { return P_; }
 
   /**
    * Prediction Predicts the state and the state covariance
    * using the process model
-   * @param delta_T Time between k and k+1 in s
+   * @param dt The amount of time elapsed from previous measurement in seconds
    */
-  void Predict();
+  void Predict(double dt);
 
   /**
    * Updates the state by using standard Kalman Filter equations
    * @param z The measurement at k+1
    */
-  void Update(const Eigen::VectorXd &z);
+  void Update(const Eigen::Vector2d &z);
 
   /**
    * Updates the state by using Extended Kalman Filter equations
    * @param z The measurement at k+1
    */
-  void UpdateEKF(const Eigen::VectorXd &z);
+  void UpdateEKF(const Eigen::Vector3d &z);
 
+private:
+  Eigen::Matrix4d I;   // identity matrix
+
+  Eigen::Vector4d x_;  // state vector
+  Eigen::Matrix4d P_;  // state covariance matrix
+  Eigen::Matrix4d F_;  // state transistion matrix
+  Eigen::Matrix4d Q_;  // process covariance matrix (/noise/stochatic/random/assumed normally distributed)
+
+  // measurement matrix - laser
+  Eigen::Matrix<double, 2, 4> H_laser_;
+  Eigen::Matrix<double, 4, 2> Ht_laser_;
+
+  // measurement covariance matrix
+  Eigen::Matrix2d R_laser_;
+  Eigen::Matrix3d R_radar_;
+
+  // noise
+  double noise_ax_;
+  double noise_ay_;
+
+  Eigen::Matrix<double, 3, 4> CalculateJacobian(); // A helper method to calculate Jacobians.
 };
 
 #endif /* KALMAN_FILTER_H_ */
