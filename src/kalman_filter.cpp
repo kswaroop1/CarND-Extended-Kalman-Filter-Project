@@ -87,12 +87,12 @@ void KalmanFilter::Update(const Vector2d &z) {
 
 void KalmanFilter::UpdateEKF(const Vector3d &z) {
   // update the state by using Extended Kalman Filter equations
-  auto Hj = CalculateJacobian();
-  auto Htj = Hj.transpose();
-  auto S = Hj * P_ * Htj + R_radar_;
-  auto Si = S.inverse();
-  auto PHt = P_ * Htj;
-  auto K = PHt * Si;
+  auto Hj   = CalculateJacobian();
+  auto Htj  = Hj.transpose();
+  auto PHt  = P_ * Htj;
+  auto S    = Hj * PHt + R_radar_;
+  auto Si   = S.inverse();
+  auto K    = PHt * Si;
 
   auto f1     = sqrt(x_[0] * x_[0] + x_[1] * x_[1]);
   auto z_pred = Vector3d{ f1, atan2(x_[1], x_[0]), (x_[0] * x_[2] + x_[1] * x_[3]) / f1 }; // polar coords
